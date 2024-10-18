@@ -201,14 +201,12 @@ for idx, row in et_points.iterrows():
     if len(weekly_window) < 18:
         continue
 
+# Calculates the slope of the linear regression line of the weekly closing prices over the last 18 periods.
+# 18 weekly period trend, basically: positive for incrementing trend and viceversa
     et_points.at[idx, 'M.Sp.PET'] = np.polyfit(range(len(weekly_window)), weekly_window['Close'], 1)[0]
+# Average closing price over the last 18 periods
     et_points.at[idx, 'LTT'] = weekly_window['Close'].mean()
-    et_points.at[idx, 'M.Sp'] = np.polyfit(range(len(weekly_window)), weekly_window['Close'], 1)[0]
-# Calculate trend
-et_points['Trend'] = np.where(
-    (et_points['GPL_$'] >= 0) & (et_points['Sp.XP-EP'] > 0), 0,
-    np.where((et_points['GPL_$'] > 0) & (et_points['Sp.XP-EP'] < 0), 1, np.nan)
-) 
+
 
 
 # Save the updated dataset with the new variables

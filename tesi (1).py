@@ -60,7 +60,7 @@ def identify_et(data, window=14):
 def generate_signals(data, window=14): 
     data = identify_et(data, window)
     data['Signal'] = 0  # Inizializza tutti i segnali a 0
-    data['Signal'][window:] = np.where(data['Momentum'][window:] > 0, 'long', 'short')
+    data['Signal'][window:] = np.where(data['Momentum'][window:] > 0, 1, -1)
     data['Position'] = data['Signal'].shift()  # Segnale di trading per il periodo successivo
     return data
 
@@ -106,11 +106,7 @@ def apply_momentum_strategy(data_daily, data_weekly, window=14):
 # Apply the momentum strategy function
 filtered_et_points = apply_momentum_strategy(df_day, df_week, window=14)
 
-# Visualize filtered ET points
-print("Filtered ET Points with Positive Daily and Weekly Momentum:")
-print(filtered_et_points[['Close', 'Momentum', 'Momentum_weekly', 'Momentum_Status']])
-print(len(filtered_et_points))
-print(filtered_et_points)
+
 
 filtered_et_points.to_csv('filtered_et_points.csv') # save it in the current directory
 
@@ -185,7 +181,6 @@ for idx, row in et_points.iterrows():
     et_points.at[idx, 'Dv.Vo-RSLIPT'] = ((daily_window['Volume'] - daily_window['Volume'].mean()) * (rsi - rsi.mean())).sum() / ((len(daily_window) - 1) * daily_window['Volume'].std() * rsi.std())
 
     # After holding time variables
-    """This variable provide valuab"""
     # Gross/profit loss for the trade depending on whether the position was long or short
     et_points.at[idx, 'GPL_$'] = row['Close'] - row['Open'] if row['Position'] == 'long' else row['Open'] - row['Close']
     # Percentage price range between high and low prices relative to the opening price
@@ -208,13 +203,6 @@ for idx, row in et_points.iterrows():
     et_points.at[idx, 'LTT'] = weekly_window['Close'].mean()
 
 
-
-# Save the updated dataset with the new variables
-et_points.to_csv('filtered_et_points_with_variables.csv', index=False)
-
-et_points.head()
-
-
 """Proviamo ad aggiungere una variabile dicotomica che sia uguale a 1 se la posizione long è profittevole su base giornaliera, 0 altrimenti"""
 
 # Order daily data by date 
@@ -232,25 +220,30 @@ def calculate_profitability(row):
 # Apply calculate profitability on the dataset, creates the target column
 et_points['Profitable'] = et_points.apply(calculate_profitability, axis=1)
 
-# Filter out NaN values
-et_points = et_points.dropna(subset=['Profitable'])
+# Shift the Profitable column up by 1 day to make it the next day's profitability
+et_points['Next_Day_Profitable'] = et_points['Profitable'].shift(-1)
 
-# Save the updated dataset (just in case)
-et_points.to_csv('filtered_et_points_with_profitability.csv', index=False)
+# Drop any rows where the target is NaN (because we can't predict beyond the dataset)
+et_points.dropna(subset=['Next_Day_Profitable'], inplace=True)
+
+
+# Rimuovere le colonne 'Date', 'Profitable', 'Open_y'
+columns_to_remove = ['Date', 'Profitable', 'Open_y']  # Elenca tutte le colonne che vuoi rimuovere
+
+# Rimuovi le colonne dal DataFrame
+et_points_cleaned = et_points.drop(columns=columns_to_remove)
 
 # Select attributes and target
-columns_to_drop = ['Date', 'Open', 'High', 'Low', 'Close', 'Trend']
-for col in columns_to_drop:
-    if col not in et_points.columns:
-        print(f"Colonna '{col}' non trovata nel DataFrame e non sarà rimossa.")
-        columns_to_drop.remove(col)
+# Definisce il target
+target = et_points['Next_Day_Profitable']
 
-features = et_points.drop(columns=columns_to_drop)
-target = et_points['Profitable']
+# Remove the target column from the features before scaling and PCA
+et_points_cleaned_no_target = et_points_cleaned.drop(columns=['Next_Day_Profitable'])
+
 
 # Standardize data
 scaler = StandardScaler()
-features_scaled = scaler.fit_transform(features)
+features_scaled = scaler.fit_transform(et_points_cleaned_no_target)
 
 # Apply PCA
 pca = PCA()
@@ -298,7 +291,7 @@ plt.title('Grafico a gomito della varianza residua')
 plt.grid(True)
 plt.show()
 
-#Save the first 6 components and calculate their variance
+#Save the first 10 components and calculate their variance
 explained_variance_six_components = np.sum(pca.explained_variance_ratio_[:10])
 print(f"Varianza cumulativa spiegata dalle prime sei componenti: {explained_variance_six_components}")
 
@@ -308,12 +301,12 @@ features_pca_6 = features_pca[:, :components_to_save]
 
 
 pca_df = pd.DataFrame(features_pca_6, columns=[f'PC{i+1}' for i in range(components_to_save)])
-pca_df['Profitable'] = target.values
+pca_df['Next_Day_Profitable'] = target.values
 
 
 # Select caracteristics and label
-X = pca_df.drop(columns=['Profitable'])
-y = pca_df['Profitable']
+X = pca_df.drop(columns=['Next_Day_Profitable'])
+y = pca_df['Next_Day_Profitable']
 
 # Devide in train and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=43)
@@ -429,4 +422,4 @@ def plot_confusion_matrix(cm, title):
     plt.show()
 
 for name, cm in confusion_matrices.items():
-    plot_confusion_matrix(cm, f'Matrix di Confusione - {name}')
+    plot_confusion_matrix(cm, f'Matrix di Confusione - {name})

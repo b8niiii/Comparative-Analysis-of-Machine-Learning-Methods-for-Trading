@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 
-df_day = pd.read_csv('/content/daily_btc_obs_2014_2023.csv')
+df_day = pd.read_csv('C:/Users/aless/OneDrive/Desktop/tesi/daily_btc_obs_2014_2023.csv')
 print(df_day.head())
 print(df_day.shape)
 
@@ -111,9 +111,10 @@ filtered_et_points.to_csv('filtered_et_points.csv') # save it in the current dir
 et_points = filtered_et_points
 
 # Upload necessary datasets
-df_day = pd.read_csv('/content/daily_btc_obs_2014_2023.csv')
-df_week = pd.read_csv('/content/weekly_observations.csv')
-et_points = pd.read_csv('/content/filtered_et_points.csv')
+df_day = pd.read_csv('C:/Users/aless/OneDrive/Desktop/tesi/daily_btc_obs_2014_2023.csv')
+df_week = pd.read_csv("C:/Users/aless/OneDrive/Desktop/tesi/weekly_btc_obs_2014_2023.csv")
+et_points = pd.read_csv('C:/Users/aless/OneDrive/Desktop/tesi/filtered_et_points.csv')
+
 
 # Converts 'Date' into datetime format
 df_day['Date'] = pd.to_datetime(df_day['Date'])
@@ -211,9 +212,9 @@ et_points = et_points.merge(df_day[['Date', 'Open']], on='Date', how='left')
 
 # Calculate profitability, this is going to be the target of our ml models
 def calculate_profitability(row):
-    if pd.isna(row['Open']):
+    if pd.isna(row['Open_x']):
         return np.nan
-    return 1 if row['Open'] < row['Close'] else 0
+    return 1 if row['Open_x'] < row['Close'] else 0
 
 # Apply calculate profitability on the dataset, creates the target column
 et_points['Profitable'] = et_points.apply(calculate_profitability, axis=1)
@@ -238,89 +239,59 @@ target = et_points['Next_Day_Profitable']
 # Remove the target column from the features before scaling and PCA
 et_points_cleaned_no_target = et_points_cleaned.drop(columns=['Next_Day_Profitable'])
 
+# Divide data into training and test set
+X_train, X_test, y_train, y_test = train_test_split(et_points_cleaned_no_target, target, test_size=0.2, random_state=42)
 
 # Standardize data
 scaler = StandardScaler()
-features_scaled = scaler.fit_transform(et_points_cleaned_no_target)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
 # Apply PCA
 pca = PCA()
-features_pca = pca.fit_transform(features_scaled)
+X_train_pca = pca.fit_transform(X_train_scaled)
+X_test_pca = pca.transform(X_test_scaled)
 
 # Calculate cumulative variance
 explained_variance = np.cumsum(pca.explained_variance_ratio_)
 print("Varianza spiegata cumulativa:", explained_variance)
-
-# Calculate residual variance
-residual_variance = 1 - explained_variance
-print("Varianza residua cumulativa:", residual_variance)
 
 # Determine number of PCA explaining 95% of the variance
 num_components = np.argmax(explained_variance >= 0.95) + 1
 print(f"Numero di componenti principali selezionate per spiegare il 95% della varianza: {num_components}")
 
 # Shrink the dataset to the selected dimension
-features_pca_selected = features_pca[:, :num_components]
+X_train_pca_selected = X_train_pca[:, :num_components]
+X_test_pca_selected = X_test_pca[:, :num_components]
 
-# Devide data in training and test set
-X_train, X_test, y_train, y_test = train_test_split(features_pca_selected, target, test_size=0.2, random_state=42)
 
-# Inizialize and train the model
+# Assicurati che le dimensioni di X_train e y_train siano coerenti
+assert X_train_pca_selected.shape[0] == y_train.shape[0], "Mismatch tra X_train_pca_selected e y_train"
+assert X_test_pca_selected.shape[0] == y_test.shape[0], "Mismatch tra X_test_pca_selected e y_test"
+
+# Inizializza e allena il modello
 model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+model.fit(X_train_pca_selected, y_train)
 
-# Predict on test data
-y_pred = model.predict(X_test)
+# Predici sui dati di test
+y_pred = model.predict(X_test_pca_selected)
 
-# Evaluate the model 
+# Valuta il modello
 print("Accuracy:", accuracy_score(y_test, y_pred))
 print(classification_report(y_test, y_pred))
 
-# Print the PCA
-print("Componenti principali selezionate:", num_components)
-print("Varianza spiegata da ciascuna componente:", pca.explained_variance_ratio_[:num_components])
-
-# Create elbow graph
-plt.figure(figsize=(10, 6))
-plt.plot(range(1, len(residual_variance) + 1), residual_variance, marker='o', linestyle='--')
-plt.xlabel('Numero di componenti principali')
-plt.ylabel('Varianza residua cumulativa')
-plt.title('Grafico a gomito della varianza residua')
-plt.grid(True)
-plt.show()
-
-#Save the first 10 components and calculate their variance
-explained_variance_six_components = np.sum(pca.explained_variance_ratio_[:10])
-print(f"Varianza cumulativa spiegata dalle prime sei componenti: {explained_variance_six_components}")
-
-# Save them in a new DataFrame
-components_to_save = 10
-features_pca_6 = features_pca[:, :components_to_save]
-
-
-pca_df = pd.DataFrame(features_pca_6, columns=[f'PC{i+1}' for i in range(components_to_save)])
-pca_df['Next_Day_Profitable'] = target.values
-
-
-# Select caracteristics and label
-X = pca_df.drop(columns=['Next_Day_Profitable'])
-y = pca_df['Next_Day_Profitable']
-
-# Devide in train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=43)
-
-# Inizialize models
+# Inizializza altri modelli
 models = {
     'Logistic Regression': LogisticRegression(random_state=43),
     'Support Vector Machine': SVC(random_state=43),
     'Gradient Boosting Classifier': GradientBoostingClassifier(random_state=43)
 }
 
-# Train and evalue the models
+# Train and evaluate the models
 for name, model in models.items():
     print(f"Training {name}...")
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    model.fit(X_train_pca_selected, y_train)
+    y_pred = model.predict(X_test_pca_selected)
 
     print(f"Results for {name}:")
     print("Accuracy:", accuracy_score(y_test, y_pred))
@@ -328,8 +299,8 @@ for name, model in models.items():
     print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
     print("\n" + "="*60 + "\n")
 
-# Visualize results with a barplot
-accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test)) for name in models]
+# Visualizza i risultati con un barplot
+accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test_pca_selected)) for name in models]
 model_names = list(models.keys())
 
 plt.figure(figsize=(10, 6))
@@ -341,13 +312,14 @@ plt.ylim(0, 1)
 plt.grid(True)
 plt.show()
 
+
 # Prepare data for a neural network
 y_train_nn = to_categorical(y_train, num_classes=2)
 y_test_nn = to_categorical(y_test, num_classes=2)
 
 # Define the neural network
 nn_model = Sequential()
-nn_model.add(Dense(64, input_dim=X_train.shape[1], activation='relu'))
+nn_model.add(Dense(64, input_dim=X_train_pca_selected.shape[1], activation='relu'))
 nn_model.add(Dense(32, activation='relu'))
 nn_model.add(Dense(2, activation='softmax'))
 
@@ -355,10 +327,10 @@ nn_model.add(Dense(2, activation='softmax'))
 nn_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # Train it
-nn_model.fit(X_train, y_train_nn, epochs=50, batch_size=10, verbose=1)
+nn_model.fit(X_train_pca_selected, y_train_nn, epochs=50, batch_size=10, verbose=1)
 
 # Evaluate it 
-y_pred_nn = nn_model.predict(X_test)
+y_pred_nn = nn_model.predict(X_test_pca_selected)
 y_pred_nn_class = np.argmax(y_pred_nn, axis=1)
 
 print("Results for Neural Network:")
@@ -368,7 +340,7 @@ print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_nn_class))
 print("\n" + "="*60 + "\n")
 
 # Barplot 
-accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test)) for name in models]
+accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test_pca_selected)) for name in models]
 accuracy_scores.append(accuracy_score(y_test, y_pred_nn_class))
 model_names = list(models.keys()) + ['Neural Network']
 
@@ -382,7 +354,7 @@ plt.grid(True)
 plt.show()
 
 # Barplot
-accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test)) for name in models]
+accuracy_scores = [accuracy_score(y_test, models[name].predict(X_test_pca_selected)) for name in models]
 accuracy_scores.append(accuracy_score(y_test, y_pred_nn_class))
 model_names = list(models.keys()) + ['Neural Network']
 
@@ -401,12 +373,12 @@ confusion_matrices = {}
 
 # Confusion matrix for the trained models
 for name, model in models.items():
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test_pca_selected)
     cm = confusion_matrix(y_test, y_pred)
     confusion_matrices[name] = cm
 
 # For the neural network
-y_pred_nn_class = np.argmax(nn_model.predict(X_test), axis=1)
+y_pred_nn_class = np.argmax(nn_model.predict(X_test_pca_selected), axis=1)
 cm_nn = confusion_matrix(y_test, y_pred_nn_class)
 confusion_matrices['Neural Network'] = cm_nn
 

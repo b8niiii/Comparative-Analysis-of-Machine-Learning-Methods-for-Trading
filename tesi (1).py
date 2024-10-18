@@ -56,11 +56,11 @@ def identify_et(data, window=14):
                           (data['Momentum'] < 0) & (data['Momentum'].shift(1) >= 0), 1, 0)
     return data
 
-# Funzione per generare segnali di trading basati sul momentum e sull'ET
+# Generate trading signal based on et and momentum
 def generate_signals(data, window=14): 
     data = identify_et(data, window)
     data['Signal'] = 0  # Inizializza tutti i segnali a 0
-    data['Signal'][window:] = np.where(data['Momentum'][window:] > 0, 1, -1)
+    data['Signal'][window:] = np.where(data['Momentum'][window:] > 0, 'long', 'short')
     data['Position'] = data['Signal'].shift()  # Segnale di trading per il periodo successivo
     return data
 
@@ -145,32 +145,52 @@ for idx, row in et_points.iterrows():
         continue
 
     # Price action variables
-    returns = daily_window['Close'].pct_change().dropna()
+    # day to day closing price percentage change over daily_window
+    returns = daily_window['Close'].pct_change().dropna() 
+    # variance of closing price
     et_points.at[idx, 's.VPT'] = ((daily_window['Close'] - daily_window['Close'].mean()) ** 2).sum() / (len(daily_window) - 1)
+    # average percent change in returns over daily_window
     et_points.at[idx, 'x.V*PPT'] = returns.mean()
+    # standard deviation of returns over daily window
     et_points.at[idx, 's.CP.PT'] = returns.std()
+    """Polyfit calculates the coefficients of a polynomial that best fits the data, minimizing the squared differences between
+      the actual data points and the values predicted by the polynomial. """
+    # Slope of the closing price trend, the [0] is used to get the first coefficient (the slope)
     et_points.at[idx, 'Sp.Vr.CP.PT'] = np.polyfit(range(len(daily_window)), daily_window['Close'], 1)[0]
+    # Computes the slope of the difference between daily high and low prices
     et_points.at[idx, 'Sp.Vr.HL.PT'] = np.polyfit(range(len(daily_window)), daily_window['High'] - daily_window['Low'], 1)[0]
+    # Computes the slope of the difference between closing and opening prices
     et_points.at[idx, 'Sp.Vr.CO.PT'] = np.polyfit(range(len(daily_window)), daily_window['Close'] - daily_window['Open'], 1)[0]
-
+    # Relative Strength Index 
     rsi = calculate_rsi(daily_window['Close'], 14)
+    # Relative Strength Index Variance
     et_points.at[idx, 's.Vr.RSI.PT'] = ((rsi - rsi.mean()) ** 2).sum() / (len(rsi) - 1)
+    # Relative Strength Index Slope: a rising slope suggest strenghening momentum and viceversa
     et_points.at[idx, 'Sp.Vr.RSI.PT'] = np.polyfit(range(len(rsi.dropna())), rsi.dropna(), 1)[0]
 
     # Volume variables
+    # Volume variance
     et_points.at[idx, 's.Vr.Vo.PT'] = ((daily_window['Volume'] - daily_window['Volume'].mean()) ** 2).sum() / (len(daily_window) - 1)
+    # Average volume percentage change
     et_points.at[idx, 'x.Vr.Vo.PT'] = daily_window['Volume'].pct_change().mean()
+    # Volume slope
     et_points.at[idx, 'Sp.Vr.Vo.PT'] = np.polyfit(range(len(daily_window)), daily_window['Volume'], 1)[0]
-    et_points.at[idx, 'Sp.Vo.PT'] = np.polyfit(range(len(daily_window)), daily_window['Volume'], 1)[0]
-
+   
     # Divergence variables
+    # Close price and RSI divergence: computes the correlation between price movement and RSI movement
     et_points.at[idx, 'Dv.CP-RSLIPT'] = ((daily_window['Close'] - daily_window['Close'].mean()) * (rsi - rsi.mean())).sum() / ((len(daily_window) - 1) * daily_window['Close'].std() * rsi.std())
+    # Volume and close price divergence: correlation between volume and price movements
     et_points.at[idx, 'Dv.Vo-CP.PPT'] = ((daily_window['Volume'] - daily_window['Volume'].mean()) * (daily_window['Close'] - daily_window['Close'].mean())).sum() / ((len(daily_window) - 1) * daily_window['Volume'].std() * daily_window['Close'].std())
+    # Volume and RSI divergence: correlation between volume and rsi
     et_points.at[idx, 'Dv.Vo-RSLIPT'] = ((daily_window['Volume'] - daily_window['Volume'].mean()) * (rsi - rsi.mean())).sum() / ((len(daily_window) - 1) * daily_window['Volume'].std() * rsi.std())
 
     # After holding time variables
+    """This variable provide valuab"""
+    # Gross/profit loss for the trade depending on whether the position was long or short
     et_points.at[idx, 'GPL_$'] = row['Close'] - row['Open'] if row['Position'] == 'long' else row['Open'] - row['Close']
+    # Percentage price range between high and low prices relative to the opening price
     et_points.at[idx, 'RP% M[1]'] = (row['High'] - row['Low']) / row['Open'] * 100 if row['Position'] == 'long' else (row['Low'] - row['High']) / row['Open'] * 100
+    # Price movement: measures price change from the start to the end of the period
     et_points.at[idx, 'Sp.XP-EP'] = (row['Close'] - daily_window['Close'].iloc[0]) / 18
 
 # Long term trend variables

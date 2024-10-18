@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-import pandas as pd
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
@@ -422,4 +420,4 @@ def plot_confusion_matrix(cm, title):
     plt.show()
 
 for name, cm in confusion_matrices.items():
-    plot_confusion_matrix(cm, f'Matrix di Confusione - {name})
+    plot_confusion_matrix(cm, f'Matrix di Confusione - {name}')

@@ -193,6 +193,23 @@ for idx, row in et_points.iterrows():
     # Price movement: measures price change from the start to the end of the period
     et_points.at[idx, 'Sp.XP-EP'] = (row['Close'] - daily_window['Close'].iloc[0]) / 18
 
+# Long term trend variables
+for idx, row in et_points.iterrows():
+    date = row['Date']
+    weekly_window = df_week[df_week['Date'] <= date].tail(18)
+
+    if len(weekly_window) < 18:
+        continue
+
+    et_points.at[idx, 'M.Sp.PET'] = np.polyfit(range(len(weekly_window)), weekly_window['Close'], 1)[0]
+    et_points.at[idx, 'LTT'] = weekly_window['Close'].mean()
+    et_points.at[idx, 'M.Sp'] = np.polyfit(range(len(weekly_window)), weekly_window['Close'], 1)[0]
+# Calculate trend
+et_points['Trend'] = np.where(
+    (et_points['GPL_$'] >= 0) & (et_points['Sp.XP-EP'] > 0), 0,
+    np.where((et_points['GPL_$'] > 0) & (et_points['Sp.XP-EP'] < 0), 1, np.nan)
+) 
+
 
 # Save the updated dataset with the new variables
 et_points.to_csv('filtered_et_points_with_variables.csv', index=False)

@@ -112,3 +112,13 @@ This project implements a momentum-based trading strategy for Bitcoin using supe
 
 - **Visual Comparisons**:  
   Bar plots and heatmaps aided in visualizing and comparing model performances.
+
+![Alt text for image](https://github.com/b8niiii/Comparative-Analysis-of-Machine-Learning-Methods-for-Trading/commit/b3f68bdfbb2fcc5c242efcb1482e1f15b066f040#diff-713841866babbf5fc08b5a2e5add8fff4882c83c34330d6bd256d05a89987fb1)
+
+![Alt text for image](https://github.com/b8niiii/Comparative-Analysis-of-Machine-Learning-Methods-for-Trading/commit/b3f68bdfbb2fcc5c242efcb1482e1f15b066f040#diff-c629cab4717020650e27083124aa9a480c8124c7bf1abcbafc5614b6ae8cde53)
+
+![Alt text for image](https://github.com/b8niiii/Comparative-Analysis-of-Machine-Learning-Methods-for-Trading/commit/b3f68bdfbb2fcc5c242efcb1482e1f15b066f040#diff-de22581b083c510c505b23d0c4dcaab23479fac15b195b492c56a46ef63739e4)
+
+![Alt text for image](https://github.com/b8niiii/Comparative-Analysis-of-Machine-Learning-Methods-for-Trading/commit/b3f68bdfbb2fcc5c242efcb1482e1f15b066f040#diff-6d499b62353ea44ba36db72300e150fa70615ba04dba9dc7430c4049f27b9816)
+
+![Alt text for image](https://github.com/b8niiii/Comparative-Analysis-of-Machine-Learning-Methods-for-Trading/commit/b3f68bdfbb2fcc5c242efcb1482e1f15b066f040#diff-fe2e4e1457580d8cdef7c3c74e62395eac1ff2d63ef3daa120d06ce0c847a621)

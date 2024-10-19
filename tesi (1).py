@@ -212,9 +212,14 @@ et_points = et_points.merge(df_day[['Date', 'Open']], on='Date', how='left')
 
 # Calculate profitability, this is going to be the target of our ml models
 def calculate_profitability(row):
-    if pd.isna(row['Open_x']):
+    if pd.isna(row['Open_x']) or pd.isna(row['Close']):
         return np.nan
-    return 1 if row['Open_x'] < row['Close'] else 0
+    if row['Position'] == 1:
+        return 1 if row['Close'] > row['Open_x'] else 0
+    elif row['Position'] == -1:
+        return 1 if row['Close'] < row['Open_x'] else 0
+    else:
+        return np.nan
 
 # Apply calculate profitability on the dataset, creates the target column
 et_points['Profitable'] = et_points.apply(calculate_profitability, axis=1)
